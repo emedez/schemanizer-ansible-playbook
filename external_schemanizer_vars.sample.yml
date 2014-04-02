@@ -1,0 +1,42 @@
+time_zone: 'America/Los_Angeles'
+delivery_method: smtp
+smtp_host: smtp.gmail.com
+smtp_user: example.user@gmail.com
+smtp_password: pa5sw0rd
+smtp_port: 587
+
+aws_access_key_id: XXXXXXXXXXXXXXXXX
+aws_secret_access_key: xkxkxkkxkxkxkxkxkkxkxkxkxkxkxkxkkx
+aws_region: us-west-1
+aws_ami_id: ami-6a9bb22f
+aws_key_name: engineering-west
+aws_security_groups: [ 'mg-monitoring' ]
+aws_instance_type: m1.small
+aws_ssh_key_file: '/home/ubuntu/.ssh/engineering-west.pem'
+aws_ssh_user: 'root'
+
+monitored_hosts_mysql_user: schemanizer_mon
+monitored_hosts_mysql_password: schemanizer_mon
+
+changeset_repo_url: 'https://api.github.com/repos/moss-palominodb/schemanizer-changesets/commits'
+changeset_repo_authorization_token: 3c3c22094d36fb9b37bd76ad58ff9b20baedaf18
+changeset_path: check_here
+
+github_schemanizer_url: https://username:password@github.com/palominodb/schemanizer.git
+gui_port: 8001
+
+local_test_db_name: schemanizer_django_test_db
+local_test_db_user: schemanizer
+local_test_db_password: schemanizer
+
+rabbitmq_user: sandbox
+rabbitmq_password: sandbox
+rabbitmq_vhostname: myhostname
+
+local_mysql_root_password: R0o7Pa5sw3rd
+
+schemanizer_db_host: ""
+schemanizer_db_port: ""
+schemanizer_db_name: schemanizer_django
+schemanizer_db_user: sandbox
+schemanizer_db_password: sandbox

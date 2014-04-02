@@ -1,0 +1,11 @@
+---
+application_user: appuser
+application_root: /var/schemanizer
+python_virtualenv_name: schemanizer
+local_mysql_user: schemanizer
+local_mysql_password: schemanizer
+local_mysql_database: schemanizer
+
+local_test_db_name: schemanizer_django_test_db
+local_test_db_user: schemanizer_test
+local_test_db_password: schemanizer_test

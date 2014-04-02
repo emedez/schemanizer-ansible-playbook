@@ -1,0 +1,19 @@
+---
+  - hosts: root_task_hosts
+    #user: ubuntu
+    sudo: yes
+    vars_files:
+      - common_vars.yml
+      - ~/external_schemanizer_vars.yml
+    roles:
+      - root_tasks
+
+  - hosts: user_task_hosts
+    user: appuser
+    #sudo: yes
+    #sudo_user: appuser
+    vars_files:
+      - common_vars.yml
+      - ~/external_schemanizer_vars.yml
+    roles:
+      - user_tasks

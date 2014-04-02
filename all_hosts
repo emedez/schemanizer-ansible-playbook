@@ -1,0 +1,27 @@
+[root_task_hosts]
+#ec2-54-241-222-160.us-west-1.compute.amazonaws.com ansible_ssh_private_key_file=/home/ubuntu/.ssh/engineering-west.pem ansible_ssh_user=ubuntu
+
+# ubuntu 12.04 lts
+#root_task_ubuntu ansible_ssh_host=ec2-54-251-72-84.ap-southeast-1.compute.amazonaws.com ansible_ssh_private_key_file=/home/elmer/ssh_keys/elmer-sg-key.pem ansible_ssh_user=ubuntu
+
+# centos 6
+#root_task_centos6 ansible_ssh_host=ec2-46-137-235-121.ap-southeast-1.compute.amazonaws.com ansible_ssh_private_key_file=/home/elmer/ssh_keys/elmer-sg-key.pem ansible_ssh_user=root
+
+# amazon
+#amazon ansible_ssh_host=ec2-54-251-0-172.ap-southeast-1.compute.amazonaws.com ansible_ssh_private_key_file=/home/elmer/ssh_keys/elmer-sg-key.pem ansible_ssh_user=ec2-user
+
+# centos 5
+root_task_centos5 ansible_ssh_host=ec2-54-254-2-107.ap-southeast-1.compute.amazonaws.com ansible_ssh_private_key_file=/home/elmer/ssh_keys/elmer-sg-key.pem ansible_ssh_user=root
+
+
+
+[user_task_hosts]
+
+# ubuntu 12.04 lts
+#user_task_ubuntu ansible_ssh_host=ec2-54-251-72-84.ap-southeast-1.compute.amazonaws.com
+
+# centos 6
+#user_task_centos6 ansible_ssh_host=ec2-46-137-235-121.ap-southeast-1.compute.amazonaws.com
+
+# centos 5
+user_task_centos5 ansible_ssh_host=ec2-54-254-2-107.ap-southeast-1.compute.amazonaws.com

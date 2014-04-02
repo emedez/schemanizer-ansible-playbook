@@ -1,0 +1,179 @@
+---
+- shell: mkdir -p ~/.schemanizer-ansible
+  ignore_errors: yes
+
+- name: setup virtualenv
+  # do a cd first, otherwise we will receive Permission denied errors on current dir when we run commands as other user
+  # which don't have access to current dir,
+  # modifify $PATH to ensure which python2.7 sees the Python compiled from source
+  shell: cd /home/{{ application_user }} &&
+         export PATH=$PATH:/usr/local/bin &&
+         mkdir -p /home/{{ application_user }}/.venv &&
+         virtualenv --distribute --no-site-packages -p `which python2.7` /home/{{ application_user }}/.venv/{{ python_virtualenv_name }} &&
+         touch ~/.schemanizer-ansible/setup-virtualenv-done
+         creates=~/.schemanizer-ansible/setup-virtualenv-done
+
+- name: Install schemanizer
+  git: repo={{ github_schemanizer_url }}
+       dest=/home/{{ application_user }}/schemanizer
+       version=master
+
+- name: update distribute
+  shell: cd /home/{{ application_user }} &&
+         /home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/easy_install -U distribute
+  ignore_errors: yes
+  when: ansible_distribution == "Ubuntu" or
+        (ansible_distribution == "CentOS" and ansible_distribution_version|float < 6.0)
+
+#- name: upgrade distribute
+#  shell: /home/{{ application_user }}/.virtualenvs/{{ python_virtualenv_name }}/bin/easy_install -U distribute creates=/home/{{ application_user }}/.virtualenvs/{{ python_virtualenv_name }}/lib/python2.7/site-packages/distribute-0.7.3-py2.7.egg
+
+#- name: install pip
+#  action: easy_install name=$item virtualenv=/home/{{ application_user }}/.virtualenvs/{{ python_virtualenv_name }} virtualenv_site_packages=no virtualenv_command=virtualenv
+#  with_items:
+#    - pip
+
+#- name: Install schemanizer
+#  git: repo={{ github_schemanizer_url }}
+#       dest=/home/{{ application_user }}/schemanizer
+#       version=master
+
+#- name: install requirements
+#  pip: requirements=/home/{{ application_user }}/schemanizer/requirements.txt virtualenv=/home/{{ application_user }}/.virtualenvs/{{ python_virtualenv_name }} virtualenv_site_packages=no virtualenv_command=virtualenv
+- name: pip install requirements
+  shell: cd /home/{{ application_user }} &&
+         /home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/pip install -M -r /home/{{ application_user }}/schemanizer/stable-requirements.txt &&
+         touch ~/.schemanizer-ansible/pip-install-requirements-done-0001
+         creates=~/.schemanizer-ansible/pip-install-requirements-done-0001
+
+#- name: get hostname
+#  shell: hostname
+#  register: get_hostname_result
+
+- name: upload aws_ssh_key_file
+  copy: src={{ aws_ssh_key_file }} dest=/home/{{ application_user }}/.ssh/schemanizer_aws_ssh_key_file.pem
+
+- name: create local_settings.py
+  template: src=local_settings.j2 dest=/home/{{ application_user }}/schemanizer/schemanizerproj/schemanizerproj/local_settings.py
+
+- name: initialize database
+  shell: cd /home/{{ application_user }} &&
+         mysql -u {{ local_mysql_user }} -p{{local_mysql_password}} {{ local_mysql_database }} < /home/{{ application_user }}/schemanizer/schemanizerproj/data/cdt.sql &&
+         touch ~/.schemanizer-ansible/initialize-database-done
+         creates=~/.schemanizer-ansible/initialize-database-done
+
+- name: syncdb
+  shell: cd /home/{{ application_user }} &&
+         /home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py syncdb --noinput --all &&
+         touch ~/.schemanizer-ansible/syncdb-done
+         creates=~/.schemanizer-ansible/syncdb-done
+
+- name: migrate
+  shell: cd /home/{{ application_user }} &&
+         /home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py migrate --fake &&
+         touch ~/.schemanizer-ansible/migrate-done
+         creates=~/.schemanizer-ansible/migrate-done
+
+- name: load fixtures
+  shell: cd /home/{{ application_user }} &&
+         /home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py loaddata /home/{{ application_user }}/schemanizer/schemanizerproj/fixtures/initial_data.json &&
+         touch ~/.schemanizer-ansible/load-fixtures-done
+         creates=~/.schemanizer-ansible/load-fixtures-done
+
+#- name: start GUI
+#  shell: cd /home/{{ application_user }} &&
+#         screen -dmS schemanizer &&
+#         screen -S schemanizer -X screen &&
+#         screen -S schemanizer -X screen &&
+#         screen -S schemanizer -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py runserver 0.0.0.0:{{ gui_port }} $(printf \\r)" &&
+#         screen -S schemanizer -p 1 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celery worker -E $(printf \\r)" &&
+#         screen -S schemanizer -p 2 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celerycam $(printf \\r)" &&
+#         touch ~/.schemanizer-ansible/start-gui-done
+#         creates=~/.schemanizer-ansible/start-gui-done
+
+#
+# Separate screen commands, the batch one is problematic!
+# Separating them should given each command enough time to complete.
+#
+
+#- name: start GUI
+#  shell: cd /home/{{ application_user }} &&
+#         screen -d -m -S schemanizer &&
+#         screen -S schemanizer -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py runserver 0.0.0.0:{{ gui_port }} $(printf \\r)"
+
+#- name: new screen
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S schemanizer -X screen
+
+#- name: new screen
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S schemanizer -X screen
+
+#- name: start celery worker and celerycam
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S schemanizer -p 1 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celery worker -E $(printf \\r)" &&
+#         screen -S schemanizer -p 2 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celerycam $(printf \\r)"
+
+- name: screen -wipe
+  shell: cd /home/{{ application_user }} &&
+         screen -wipe
+  ignore_errors: yes
+
+- name: quit existing screen if present
+  shell: cd /home/{{ application_user }} &&
+         screen -S schemanizer -X quit
+  ignore_errors: yes
+
+#- name: start GUI
+#  shell: cd /home/{{ application_user }} &&
+#         screen -c /home/{{ application_user }}/schemanizer/screenrc
+- name: start GUI
+  shell: cd /home/{{ application_user }} &&
+    screen -d -m -S schemanizer &&
+    sleep 1s &&
+    screen -S schemanizer -X screen &&
+    sleep 1s &&
+    screen -S schemanizer -X screen &&
+    sleep 1s &&
+    screen -S schemanizer -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py runserver 0.0.0.0:{{ gui_port }} $(printf \\r)" &&
+    sleep 1s &&
+    screen -S schemanizer -p 1 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celery worker -E $(printf \\r)" &&
+    sleep 1s &&
+    screen -S schemanizer -p 2 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celerycam $(printf \\r)"
+
+
+#- name: quit existing screen if present
+#  shell: screen -S runserver -X quit
+#  ignore_errors: yes
+#
+#- name: quit existing screen if present
+#  shell: screen -S celeryworker -X quit
+#  ignore_errors: yes
+#
+#- name: quit existing screen if present
+#  shell: screen -S celerycam -X quit
+#  ignore_errors: yes
+#
+#- name: init screen
+#  shell: cd /home/{{ application_user }} &&
+#         screen -d -m -S runserver
+#
+#- name: init screen
+#  shell: cd /home/{{ application_user }} &&
+#         screen -d -m -S celeryworker
+#
+#- name: init screen
+#  shell: cd /home/{{ application_user }} &&
+#         screen -d -m -S celerycam
+#
+#- name: run django app server
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S runserver -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py runserver 0.0.0.0:{{ gui_port }} $(printf \\r)"
+#
+#- name: start celery worker
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S celeryworker -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celery worker -E $(printf \\r)"
+#
+#- name: start celerycam
+#  shell: cd /home/{{ application_user }} &&
+#         screen -S celerycam -p 0 -X stuff "/home/{{ application_user }}/.venv/{{ python_virtualenv_name }}/bin/python /home/{{ application_user }}/schemanizer/schemanizerproj/manage.py celerycam $(printf \\r)"

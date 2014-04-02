@@ -1,0 +1,302 @@
+---
+- debug: msg="distribution=$ansible_distribution, ansible_user_id=$ansible_user_id, ansible_ssh_user=$ansible_ssh_user"
+
+##############################################################################
+# Bootstrap
+##############################################################################
+- shell: mkdir -p ~/.schemanizer-ansible
+  ignore_errors: yes
+
+- name: update Ubuntu repository
+  apt: update_cache=yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: install required packages for Ubuntu
+  apt: pkg=$item state=present
+  with_items:
+    - python-setuptools
+    - python-dev
+    - build-essential
+    - git
+    - mysql-server
+    - mysql-client
+    - libmysqlclient-dev
+    - python-mysqldb
+    - mercurial
+    - rabbitmq-server
+  when: ansible_distribution == "Ubuntu"
+
+- name: install required packages for Ubuntu
+  shell: apt-get -y build-dep python-imaging &&
+         touch ~/.schemanizer-ansible/build-dep-python-imaging-done
+         creates=~/.schemanizer-ansible/build-dep-python-imaging-done
+  when: ansible_distribution == "Ubuntu"
+
+- name: symlinks fix for Ubuntu
+  shell: ln -s /usr/lib/`uname -i`-linux-gnu/libfreetype.so /usr/lib/ &&
+         ln -s /usr/lib/`uname -i`-linux-gnu/libjpeg.so /usr/lib/ &&
+         ln -s /usr/lib/`uname -i`-linux-gnu/libz.so /usr/lib/ &&
+         touch ~/.schemanizer-ansible/symlinks-fix-done
+         creates=~/.schemanizer-ansible/symlinks-fix-done
+  ignore_errors: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: bootsrap CentOS
+  yum: pkg=$item state=installed
+  with_items:
+    - wget
+    - screen
+    - vixie-cron
+  when: ansible_distribution == "CentOS"
+
+- name: setup EPEL repository for CentOS 5
+  shell: cd /tmp &&
+         wget -N http://dl.fedoraproject.org/pub/epel/5/`uname -i`/epel-release-5-4.noarch.rpm &&
+         rpm -Uvh epel-release-5-4.noarch.rpm &&
+         touch ~/.schemanizer-ansible/centos5-setup-epel-repo-done
+         creates=~/.schemanizer-ansible/centos5-setup-epel-repo-done
+  ignore_errors: yes
+  when: ansible_distribution == "CentOS" and ansible_distribution_version|float < 6.0
+
+- name: setup EPEL repository for CentOS 6
+  shell: cd /tmp &&
+         wget -N http://dl.fedoraproject.org/pub/epel/6/`uname -i`/epel-release-6-8.noarch.rpm &&
+         rpm -Uvh epel-release-6-8.noarch.rpm &&
+         touch ~/.schemanizer-ansible/centos6-setup-epel-repo-done
+         creates=~/.schemanizer-ansible/centos6-setup-epel-repo-done
+  ignore_errors: yes
+  when: ansible_distribution == "CentOS" and ansible_distribution_version|float >= 6.0
+
+- name: install development tools for CentOS
+  shell: yum -y groupinstall "Development tools"
+  when: ansible_distribution == "CentOS"
+
+- name: install build dependencies for CentOS
+  yum: pkg=$item state=installed
+  with_items:
+    - zlib-devel
+    - bzip2-devel
+    - openssl-devel
+    - ncurses-devel
+    - sqlite-devel
+    - readline-devel
+    - tk-devel
+    - libjpeg-devel
+    - groff
+  when: ansible_distribution == "CentOS"
+
+- name: install packages for Amazon Linux/CentOS
+  yum: pkg=$item state=installed
+  with_items:
+    - git
+    - gcc
+    - gcc-c++
+    - make
+    - python-devel
+    - mysql
+    - mysql-server
+    - mysql-devel
+    - python-setuptools
+    - python-imaging
+    - cairo-devel
+    - libxml2-devel
+    - pango-devel
+    - libpng-devel
+    - freetype
+    - freetype-devel
+    - libart_lgpl-devel
+    - libjpeg-devel
+    - MySQL-python
+    - wget
+    - mercurial
+  when: ansible_distribution == "Amazon" or ansible_distribution == "CentOS"
+
+- name: install packages for Amazon Linux/CentOS
+  yum: pkg=$item state=installed
+  with_items:
+    - erlang
+  when: ansible_distribution == "Amazon" or ansible_distribution == "CentOS"
+
+- name: install packages for CentOS
+  yum: pkg=$item state=installed
+  with_items:
+    - rabbitmq-server
+  when: ansible_distribution == "CentOS" and ansible_distribution_version|float >= 6.0
+
+- name: install rabbitmq-server for Amazon Linux/CentOS
+  shell: rpm --import http://www.rabbitmq.com/rabbitmq-signing-key-public.asc &&
+         wget -N http://www.rabbitmq.com/releases/rabbitmq-server/v3.1.3/rabbitmq-server-3.1.3-1.noarch.rpm &&
+         yum -y install rabbitmq-server-3.1.3-1.noarch.rpm &&
+         touch ~/.schemanizer-ansible/amazon-install-rabbitmq-server-done
+         creates=~/.schemanizer-ansible/amazon-install-rabbitmq-server-done
+  when: ansible_distribution == "Amazon" or
+        (ansible_distribution == "CentOS" and ansible_distribution_version|float < 6.0)
+
+
+##############################################################################
+# Install Python 2.7
+##############################################################################
+
+- name: check if python2.7 exists
+  shell: which python2.7
+  register: python27_check
+  ignore_errors: True
+
+- name: install Python 2.7
+  shell: cd /tmp &&
+         wget -N http://python.org/ftp/python/2.7.3/Python-2.7.3.tar.bz2 &&
+         tar xf Python-2.7.3.tar.bz2 &&
+         cd Python-2.7.3 &&
+         ./configure --prefix=/usr/local &&
+         make &&
+         make altinstall &&
+         touch ~/.schemanizer-ansible/centos-ubuntu-install-python-done
+         creates=~/.schemanizer-ansible/centos-ubuntu-install-python-done
+  when: python27_check|failed and
+        (ansible_distribution == "CentOS" or ansible_distribution == "Ubuntu")
+
+- name: install Python 2.7
+  yum: pkg=$item state=installed
+  with_items:
+    - python27
+    - python27-devel
+  when: python27_check|failed and ansible_distribution == "Amazon"
+
+- name: install distribute
+  shell: easy_install -U distribute &&
+         touch ~/.schemanizer-ansible/centos-install-distribute-done
+         creates=~/.schemanizer-ansible/centos-install-distribute-done
+  when: ansible_distribution == "CentOS" and ansible_distribution_version|float < 6.0
+
+##############################################################################
+# Install virtualenv
+##############################################################################
+
+- name: install virtualenv
+  apt: pkg=python-virtualenv state=present
+  when: ansible_distribution == "Ubuntu"
+
+# Amazon needs pip to bring in virtualenv
+- name: install pip
+  shell: cd /tmp &&
+         wget -N http://pypi.python.org/packages/source/p/pip/pip-1.1.tar.gz#md5=62a9f08dd5dc69d76734568a6c040508 &&
+         tar -xvf pip*.gz &&
+         cd pip* &&
+         python setup.py install &&
+         touch ~/.schemanizer-ansible/amazon-install-pip-done
+         creates=~/.schemanizer-ansible/amazon-install-pip-done
+  when: ansible_distribution == "Amazon"
+
+- name: install virtualenv
+  shell: pip install virtualenv
+  when: ansible_distribution == "Amazon"
+
+- name: install virtualenv
+  yum: pkg=python-virtualenv state=installed
+  when: ansible_distribution == "CentOS"
+
+
+# Create application user
+##############################################################################
+
+- name: create a user if necessary
+  user: name={{ application_user }} shell=/bin/bash
+
+- name: create directory
+  file: dest=/home/{{ application_user }}/.ssh owner={{ application_user }}
+        group={{ application_user }} state=directory mode=0700
+
+- name: add public key
+  authorized_key: user={{ application_user }} key="{{ item }}"
+  with_file:
+    - ~/.ssh/id_rsa.pub
+
+
+#- name: install apt packages
+#  apt: pkg=$item update_cache=yes state=installed
+#  with_items:
+#    - python2.7
+#    - python-setuptools
+##    - python-pip
+#    - python-virtualenv
+#    - python-dev
+#    - python-mysqldb
+#    - libmysqlclient-dev
+#    - mysql-server
+#    - git
+#    - mercurial
+#    - build-essential
+#    - rabbitmq-server
+
+#- name: install pip packages
+#  action: pip name=$item state=present
+#  with_items:
+#    - virtualenv
+#    - virtualenvwrapper
+#
+
+
+#- name: get hostname
+#  shell: hostname
+#  register: get_hostname_result
+
+
+- name: start rabbitmq-server
+  service: name=rabbitmq-server state=started
+
+#- name: set up rabbitmq vhost
+#  rabbitmq_vhost: name={{ rabbitmq_vhostname }}
+- name: set up rabbitmq vhost
+  #rabbitmq_vhost: name={{ get_hostname_result.stdout }}
+  rabbitmq_vhost: name={{ rabbitmq_vhostname }}
+
+
+- name: set up rabbitmq user
+  rabbitmq_user: user={{ rabbitmq_user }}
+                 password={{ rabbitmq_password }}
+                 vhost={{ rabbitmq_vhostname }}
+                 configure_priv=.*
+                 read_priv=.*
+                 write_priv=.*
+                 state=present
+
+- name: start mysql server
+  service: name=mysql state=started enabled=true
+  when: ansible_distribution == "Ubuntu"
+
+- name: start mysql server
+  service: name=mysqld state=started enabled=true
+  when: ansible_distribution == "Amazon" or
+        ansible_distribution == "CentOS"
+
+- name: set mysql root password
+  mysql_user: name=root password={{ local_mysql_root_password }}
+
+- name: create .my.cnf
+  template: src=my.cnf.j2 dest=/root/.my.cnf
+
+- name: restart mysql server
+  service: name=mysql state=restarted
+  when: ansible_distribution == "Ubuntu"
+
+- name: restart mysql server
+  service: name=mysqld state=restarted
+  when: ansible_distribution == "Amazon" or
+        ansible_distribution == "CentOS"
+
+- name: create database {{ local_mysql_database }}
+  mysql_db: name={{ local_mysql_database }} state=present
+
+- name: set schemanizer user mysql privileges
+  mysql_user: name={{ local_mysql_user }}
+              password={{ local_mysql_password }}
+              priv={{ local_mysql_database }}.*:ALL
+              host='localhost'
+              state=present
+
+- name: insert iptables entry
+  shell: /sbin/iptables -I INPUT -p tcp --dport {{ gui_port }} -j ACCEPT &&
+         touch ~/.schemanizer-ansible/insert-iptables-entry-done
+         creates=~/.schemanizer-ansible/insert-iptables-entry-done
+  ignore_errors: yes
+  when: ansible_distribution == "CentOS"
